@@ -1,4 +1,4 @@
-"""Local demo of HexaMagDB: element coverage, co-doping matrix, property plots and a record browser.
+"""HexaMagDB: element coverage, co-doping matrix, property plots and a record browser.
 Run from HexaMagDB/:  streamlit run app/streamlit_app.py"""
 from itertools import combinations
 from pathlib import Path
@@ -55,7 +55,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"] {{ backgr
 .hero h1 {{ margin:0 !important; font-size:2.1rem !important; font-weight:700 !important; letter-spacing:-0.02em;
    background:linear-gradient(90deg,{SOUTH},{VIOLET},{NORTH}); -webkit-background-clip:text; background-clip:text; color:transparent !important; }}
 .hero .sub {{ color:{MUTED}; font-size:0.92rem; margin-top:4px; }}
-.hero .tag {{ font-family:'JetBrains Mono',monospace; font-size:0.62rem; letter-spacing:0.18em; text-transform:uppercase; color:{GOLD}; }}
+.hero .tag {{ font-family:'Space Grotesk',sans-serif; font-size:1.15rem; font-weight:500; letter-spacing:0.01em; color:{GOLD}; }}
 [data-testid="stMainBlockContainer"] {{ padding-top:1.2rem !important; }}
 h1, h2, h3 {{ font-family:'Space Grotesk',sans-serif !important; color:#e8ecf4 !important; }}
 p, li {{ color:{MUTED}; }}
@@ -199,9 +199,7 @@ d = load(DATA.stat().st_mtime)
 with st.sidebar:
     st.markdown(f"""<div style="display:flex;align-items:center;gap:10px;padding:2px 0 14px;">{LOOP_SVG.format(w=54, h=36)}
         <div><div style="font-family:'Space Grotesk',sans-serif;font-size:1.3rem;font-weight:700;color:#eef1f8;line-height:1;">
-        Hexa<span style="background:linear-gradient(90deg,{SOUTH},{NORTH});-webkit-background-clip:text;color:transparent;">Mag</span>DB</div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:0.58rem;letter-spacing:0.2em;color:{GOLD};text-transform:uppercase;margin-top:4px;">
-        local demo</div></div></div>""", unsafe_allow_html=True)
+        Hexa<span style="background:linear-gradient(90deg,{SOUTH},{NORTH});-webkit-background-clip:text;color:transparent;">Mag</span>DB</div></div></div>""", unsafe_allow_html=True)
     page = st.radio("Navigation", ["◈  Element coverage", "⊞  Co-doping matrix", "∿  Properties", "≡  Records"],
                     label_visibility="collapsed")
     st.markdown("<hr style='border-color:rgba(255,255,255,0.07)'>", unsafe_allow_html=True)
@@ -218,7 +216,7 @@ FIELD_LINES = "".join(f"<ellipse cx='50%' cy='120%' rx='{r}%' ry='{r * 1.6}%' fi
                       for r in range(12, 120, 12))
 st.markdown(f"""<div class="hero"><svg class="lines" width="100%" height="100%" preserveAspectRatio="none">
 <defs><linearGradient id="fl" x1="0" x2="1"><stop offset="0" stop-color="{SOUTH}"/><stop offset="1" stop-color="{NORTH}"/></linearGradient></defs>
-{FIELD_LINES}</svg>{LOOP_SVG.format(w=120, h=80)}<div style="position:relative;"><div class="tag">M-type hexaferrites · BaFe₁₂O₁₉ · SrFe₁₂O₁₉</div>
+{FIELD_LINES}</svg>{LOOP_SVG.format(w=120, h=80)}<div style="position:relative;"><div class="tag">M-type hexaferrites · BaFe<sub>12</sub>O<sub>19</sub> · SrFe<sub>12</sub>O<sub>19</sub></div>
 <h1>HexaMagDB</h1><div class="sub">Doped Ba and Sr hexaferrites from the literature: composition, synthesis, structure,
 saturation magnetization and coercivity.</div></div></div>""", unsafe_allow_html=True)
 c1, c2, c3, c4, c5 = st.columns(5)
