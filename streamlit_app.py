@@ -1,5 +1,7 @@
 """HexaMagDB: element coverage, co-doping matrix, property plots and a record browser.
 Run from HexaMagDB/:  streamlit run app/streamlit_app.py"""
+import html
+import re
 from itertools import combinations
 from pathlib import Path
 
@@ -8,6 +10,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+
 
 DATA = Path(__file__).resolve().parent / "data" / "hexamagdb.csv"
 # magnet palette: south pole blue, north pole red, violet in between
@@ -73,6 +76,24 @@ p, li {{ color:{MUTED}; }}
           font-family:'JetBrains Mono',monospace; line-height:1.05; }}
 .pt .s {{ font-size:0.85rem; font-weight:500; }}
 .pt .n {{ font-size:0.58rem; opacity:0.85; }}
+.cards {{ display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:12px; margin:6px 0 10px; }}
+.card {{ position:relative; background:{PANEL}; border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:14px 14px 12px; overflow:hidden; }}
+.card:before {{ content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:linear-gradient(180deg,{SOUTH},{NORTH}); }}
+.card:hover {{ border-color:rgba(255,209,102,0.35); }}
+.card .f {{ font-family:'Space Grotesk',sans-serif; font-size:1.05rem; font-weight:600; color:#eef1f8; line-height:1.25; word-break:break-word; }}
+.card .m {{ font-family:'JetBrains Mono',monospace; font-size:0.68rem; color:#5d6880; margin:4px 0 10px; }}
+.card .g {{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }}
+.card .g div {{ background:rgba(255,255,255,0.03); border-radius:6px; padding:5px 7px; }}
+.card .g b {{ display:block; font-family:'Space Grotesk',sans-serif; font-size:0.95rem; color:#e8ecf4; font-weight:500; }}
+.card .g i {{ font-style:normal; font-family:'JetBrains Mono',monospace; font-size:0.6rem; color:#4a5568; text-transform:uppercase; letter-spacing:0.06em; }}
+.card .x {{ font-size:0.75rem; color:{MUTED}; margin-top:9px; line-height:1.4; }}
+.card a {{ color:{GOLD} !important; text-decoration:none; font-family:'JetBrains Mono',monospace; font-size:0.68rem; }}
+.card .imp {{ color:{NORTH}; }}
+.art {{ margin:14px 0 22px; }}
+.art .h {{ display:flex; flex-wrap:wrap; gap:12px; align-items:baseline; padding:0 0 6px; border-bottom:1px solid rgba(255,255,255,0.07); margin-bottom:8px;
+          font-family:'Space Grotesk',sans-serif; color:#e8ecf4; font-size:0.95rem; }}
+.art .h a {{ color:{GOLD} !important; text-decoration:none; font-family:'JetBrains Mono',monospace; font-size:0.75rem; }}
+.art .h .n {{ font-family:'JetBrains Mono',monospace; font-size:0.7rem; color:#5d6880; }}
 </style>""", unsafe_allow_html=True)
 
 
@@ -170,6 +191,68 @@ def show_distributions(df, hit, label):
         cols[i % 3].plotly_chart(fig, use_container_width=True, config={"displayModeBar": False}, key=f"dist_{col}_{label}")
 
 
+def fmt_formula(x):
+    return re.sub(r"(?<=[A-Za-z)])(\d+(?:\.\d+)?)", r"<sub>\1</sub>", html.escape(str(x)))
+
+
+def num(v, nd=2):
+    if pd.isna(v):
+        return "—"
+    t = f"{v:.{nd}f}"
+    return t.rstrip("0").rstrip(".") if "." in t else t
+
+
+def txt(v, empty=""):
+    return empty if pd.isna(v) or v == "" else html.escape(str(v))
+
+
+def card(r, source=True):
+    cells = [(num(r.Ms_emu_g, 1), "Ms, emu/g"), (num(r.Mr_emu_g, 1), "Mr, emu/g"), (num(r.Hc_kOe, 2), "Hc, kOe"),
+             (num(r.Mr_Ms, 2), "Mr/Ms"), (num(r.a_A, 3), "a, Å"), (num(r.c_A, 3), "c, Å")]
+    t = f"{num(r.Annealing_Temperature_C, 0)} °C" if pd.notna(r.Annealing_Temperature_C) else "T n/a"
+    phase = "" if r.Phase_Purity in ("", "single phase") or pd.isna(r.Phase_Purity) else \
+        f" · <span class='imp'>{html.escape(str(r.Phase_Purity))}" + \
+        (f": {txt(r.Secondary_Phases)}" if txt(r.Secondary_Phases) else "") + "</span>"
+    grid = "".join("<div><b>%s</b><i>%s</i></div>" % c for c in cells)
+    src = f"""<div class="x">{html.escape(str(r.Journal))}, {int(r.Year)} · <a href="https://doi.org/{r.DOI}" target="_blank">{r.DOI} ↗</a></div>""" if source else ""
+    return f"""<div class="card"><div class="f">{fmt_formula(r.Formula)}</div>
+<div class="m">{r.Record_ID} · {txt(r.Sample_Form, 'form n/a')}</div>
+<div class="g">{grid}</div>
+<div class="x">{txt(r.Synthesis_Method, 'method n/a')} · {t}{phase}</div>{src}</div>"""
+
+
+def record_cards(hit):
+    """Card grid like in RuCytoToxDB: one card per record, paged; optionally grouped by article."""
+    s0, s1, s2 = st.columns([1.2, 2, 1])
+    grouped = s0.toggle("Group by article", key=f"grp_{len(hit)}")
+    key = s1.selectbox("Sort articles by" if grouped else "Sort cards by",
+                       ["Ms_emu_g", "Mr_emu_g", "Hc_kOe", "Mr_Ms", "Year", "Annealing_Temperature_C"], key=f"sort_{len(hit)}")
+    desc = s2.radio("Order", ["↓", "↑"], horizontal=True, key=f"ord_{len(hit)}") == "↓"
+    if not grouped:
+        hit = hit.sort_values(key, ascending=not desc, na_position="last")
+        per = 24
+        pages = max(1, -(-len(hit) // per))
+        pg = st.number_input(f"Page (of {pages})", 1, pages, 1, key=f"pg_{len(hit)}") if pages > 1 else 1
+        st.markdown('<div class="cards">' + "".join(card(r) for _, r in hit.iloc[(pg - 1) * per:pg * per].iterrows())
+                    + "</div>", unsafe_allow_html=True)
+        return
+    # articles ranked by their best value of the key; cards inside follow the dopant amount (the series order)
+    best = hit.groupby("DOI")[key].max() if desc else hit.groupby("DOI")[key].min()
+    dois = best.sort_values(ascending=not desc, na_position="last").index.tolist()
+    per = 6
+    pages = max(1, -(-len(dois) // per))
+    pg = st.number_input(f"Page (of {pages}, {per} articles each)", 1, pages, 1, key=f"gpg_{len(hit)}") if pages > 1 else 1
+    out = []
+    for doi in dois[(pg - 1) * per:pg * per]:
+        g = hit[hit.DOI == doi].sort_values(["Dopant_Amount", "Annealing_Temperature_C", "Record_ID"], na_position="first")
+        r0 = g.iloc[0]
+        inner = "".join(card(r, source=False) for _, r in g.iterrows())
+        out.append(f"""<div class="art"><div class="h"><span>{html.escape(str(r0.Journal))}, {int(r0.Year)}</span>
+<a href="https://doi.org/{doi}" target="_blank">{doi} ↗</a><span class="n">{len(g)} records</span></div>
+<div class="cards">{inner}</div></div>""")
+    st.markdown("".join(out), unsafe_allow_html=True)
+
+
 def show_hits(df, els, alone=False):
     """Records and articles that contain all of els (alone: the element is the only dopant)."""
     hit = df[df.Elements.map(lambda e: (e == els) if alone else set(els) <= set(e))]
@@ -182,7 +265,9 @@ def show_hits(df, els, alone=False):
             .reset_index().sort_values(["Year", "DOI"]))
     arts["Link"] = "https://doi.org/" + arts.DOI
     show_distributions(df, hit, label)
-    t1, t2 = st.tabs(["Articles", "Records"])
+    t0, t1, t2 = st.tabs(["Cards", "Articles", "Records"])
+    with t0:
+        record_cards(hit)
     t1.dataframe(arts, hide_index=True, use_container_width=True,
                  column_config={"Link": st.column_config.LinkColumn("Link", display_text="open ↗"),
                                 "Year": st.column_config.NumberColumn(format="%d")})

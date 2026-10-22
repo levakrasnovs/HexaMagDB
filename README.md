@@ -13,7 +13,7 @@
 
 | Path | Description |
 | --- | --- |
-| `data/hexamagdb.csv` | The dataset: 3,030 records from 505 publications |
+| `data/hexamagdb.csv` | The dataset: 3,034 records from 505 publications |
 | `streamlit_app.py` | Streamlit app to browse, filter, plot and download the data |
 
 Each record is one sample from one publication. Main fields:
