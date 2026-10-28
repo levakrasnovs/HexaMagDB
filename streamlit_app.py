@@ -89,10 +89,21 @@ p, li {{ color:{MUTED}; }}
 .card .x {{ font-size:0.75rem; color:{MUTED}; margin-top:9px; line-height:1.4; }}
 .card a {{ color:{GOLD} !important; text-decoration:none; font-family:'JetBrains Mono',monospace; font-size:0.68rem; }}
 .card .imp {{ color:{NORTH}; }}
-.art {{ margin:14px 0 22px; }}
+.art {{ margin:12px 0 16px; padding:14px 16px 10px; background:{PANEL}; border:1px solid rgba(255,255,255,0.06); border-radius:10px; box-shadow:inset 3px 0 0 {VIOLET}; }}
 .art .h {{ display:flex; flex-wrap:wrap; gap:12px; align-items:baseline; padding:0 0 6px; border-bottom:1px solid rgba(255,255,255,0.07); margin-bottom:8px;
           font-family:'Space Grotesk',sans-serif; color:#e8ecf4; font-size:0.95rem; }}
 .art .h a {{ color:{GOLD} !important; text-decoration:none; font-family:'JetBrains Mono',monospace; font-size:0.75rem; }}
+.art details {{ margin:2px 0 8px; }}
+.art summary {{ cursor:pointer; color:{GOLD}; font-family:'JetBrains Mono',monospace; font-size:0.72rem; }}
+.art details p {{ font-size:0.8rem; line-height:1.45; margin:6px 0 0; }}
+.art .tw {{ overflow-x:auto; }}
+.art table {{ border-collapse:collapse; width:100%; font-size:0.78rem; }}
+.art th {{ font-family:'JetBrains Mono',monospace; font-size:0.62rem; font-weight:500; color:#5d6880; text-align:right;
+   padding:4px 8px; border-bottom:1px solid rgba(255,255,255,0.08); white-space:nowrap; }}
+.art td {{ color:#d5dbe8; text-align:right; padding:3px 8px; border-bottom:1px solid rgba(255,255,255,0.03); white-space:nowrap; }}
+.art th:first-child, .art td.fm {{ text-align:left; }}
+.art td.fm {{ font-family:'Space Grotesk',sans-serif; color:#eef1f8; }}
+.art td.imp {{ color:{NORTH}; }}
 .art .h .n {{ font-family:'JetBrains Mono',monospace; font-size:0.7rem; color:#5d6880; }}
 </style>""", unsafe_allow_html=True)
 
@@ -101,8 +112,9 @@ p, li {{ color:{MUTED}; }}
 def load(mtime):
     """mtime only keys the cache, so a rebuilt CSV is picked up without restarting."""
     d = pd.read_csv(DATA, keep_default_na=False, dtype=str)
-    for c in ("Year", "Annealing_Temperature_C", "a_A", "c_A", "V_A3", "Crystallite_Size_nm", "Ms_emu_g",
-              "Mr_emu_g", "Hc_kOe", "Mr_Ms", "Tc_K", "Maximum_Field_kOe"):
+    for c in ("Year", "Calcination_Temperature_C", "Calcination_Time_h", "Sintering_Temperature_C", "Sintering_Time_h",
+              "a_A", "c_A", "V_A3", "Crystallite_Size_nm", "Particle_Size_nm", "Ms_emu_g", "Mr_emu_g", "Hc_kOe", "Mr_Ms",
+              "Tc_K", "Maximum_Field_kOe", "Ha_kOe", "K_erg_cm3", "K_erg_g"):
         d[c] = pd.to_numeric(d[c], errors="coerce")
     has_ba, has_sr = d.Formula.str.contains("Ba"), d.Formula.str.contains("Sr")
     d["Host"] = np.select([has_ba & has_sr, has_ba, has_sr], ["Ba–Sr", "Ba", "Sr"], "other")
@@ -126,19 +138,34 @@ def shade(frac):
     return "#%02x%02x%02x" % tuple(rgb), "#f4f6fb"
 
 
-def periodic_table(counts, hosts=("Ba", "Sr"), unit="records", selected=None):
-    mx = np.log1p(max(counts.values())) if counts else 1
+def periodic_table(counts, hosts=("Ba", "Sr"), unit="records", selected=None, partners=None, pair=None):
+    """partners: co-dopant counts of the selected element; they are shaded on their own scale, the rest is dimmed."""
+    orig_counts = counts
+    if partners is not None:
+        counts = {**{e: 0 for e in counts}, **partners, selected: counts[selected]}
+        others = set(PT) - set(partners) - {selected}
+    mx = np.log1p(max(counts.values())) if counts and max(counts.values()) else 1
     cells = []
     for sym, (z, r, c) in PT.items():
         style = f"grid-row:{r};grid-column:{c};"
         n = counts.get(sym, 0)
-        if sym in hosts or sym in ("Fe", "O"):
+        if partners is not None and sym in others and sym in orig_counts and sym not in hosts:
+            cells.append(f"<a href='?el={sym}' target='_self' style='{style}background:#141a2c;color:#5d6880;opacity:0.35;' "
+                         f"title='{sym}: never with {selected}, click to select'><span class='s'>{sym}</span></a>")
+        elif sym in hosts or sym in ("Fe", "O"):
             cells.append(f"<div style='{style}background:repeating-linear-gradient(135deg,#1c2338 0 4px,#232c46 4px 8px);color:#9fb3d9;' title='{sym}: host lattice'>"
                          f"<span class='s'>{sym}</span><span class='n'>host</span></div>")
         elif n:
             bg, fg = shade(np.log1p(n) / mx)
-            ring = f"outline:2px solid {GOLD};box-shadow:0 0 16px rgba(255,209,102,0.5);" if sym == selected else ""
-            cells.append(f"<a href='?el={sym}' target='_self' style='{style}{ring}background:{bg};color:{fg};' title='{sym}: {n} {unit}'>"
+            ring = f"outline:2px solid {GOLD};box-shadow:0 0 16px rgba(255,209,102,0.5);" if sym in (selected, pair) else ""
+            if partners is None:
+                href, tip = f"?el={sym}", f"{sym}: {n} {unit}"
+            elif sym == selected:
+                href, tip = "?", f"{sym}: {n} {unit} in total, click to clear"
+                bg, fg = GOLD, "#1a1405"
+            else:
+                href, tip = f"?el={selected}&with={sym}", f"{selected} + {sym}: {n} {unit}"
+            cells.append(f"<a href='{href}' target='_self' style='{style}{ring}background:{bg};color:{fg};' title='{tip}'>"
                          f"<span class='s'>{sym}</span><span class='n'>{n}</span></a>")
         else:
             cells.append(f"<div style='{style}background:#0b0f1a;color:#323a52;border:1px solid rgba(255,255,255,0.04);' "
@@ -162,7 +189,8 @@ def pair_counts(df, by_doi):
 
 
 DIST_PROPS = [("Ms_emu_g", "Ms, emu/g"), ("Mr_emu_g", "Mr, emu/g"), ("Hc_kOe", "Hc, kOe"), ("Mr_Ms", "Mr/Ms"),
-              ("Crystallite_Size_nm", "Crystallite size, nm"), ("Annealing_Temperature_C", "Annealing T, °C")]
+              ("Ha_kOe", "Ha, kOe"), ("Crystallite_Size_nm", "Crystallite size, nm"),
+              ("Calcination_Temperature_C", "Calcination T, °C"), ("Sintering_Temperature_C", "Sintering T, °C")]
 
 
 def show_distributions(df, hit, label):
@@ -206,51 +234,60 @@ def txt(v, empty=""):
     return empty if pd.isna(v) or v == "" else html.escape(str(v))
 
 
-def card(r, source=True):
-    cells = [(num(r.Ms_emu_g, 1), "Ms, emu/g"), (num(r.Mr_emu_g, 1), "Mr, emu/g"), (num(r.Hc_kOe, 2), "Hc, kOe"),
-             (num(r.Mr_Ms, 2), "Mr/Ms"), (num(r.a_A, 3), "a, Å"), (num(r.c_A, 3), "c, Å")]
-    t = f"{num(r.Annealing_Temperature_C, 0)} °C" if pd.notna(r.Annealing_Temperature_C) else "T n/a"
-    phase = "" if r.Phase_Purity in ("", "single phase") or pd.isna(r.Phase_Purity) else \
-        f" · <span class='imp'>{html.escape(str(r.Phase_Purity))}" + \
-        (f": {txt(r.Secondary_Phases)}" if txt(r.Secondary_Phases) else "") + "</span>"
-    grid = "".join("<div><b>%s</b><i>%s</i></div>" % c for c in cells)
-    src = f"""<div class="x">{html.escape(str(r.Journal))}, {int(r.Year)} · <a href="https://doi.org/{r.DOI}" target="_blank">{r.DOI} ↗</a></div>""" if source else ""
-    return f"""<div class="card"><div class="f">{fmt_formula(r.Formula)}</div>
-<div class="m">{r.Record_ID} · {txt(r.Sample_Form, 'form n/a')}</div>
-<div class="g">{grid}</div>
-<div class="x">{txt(r.Synthesis_Method, 'method n/a')} · {t}{phase}</div>{src}</div>"""
+# columns of the per-article sample table: (column, header, digits); a column empty for the whole article is hidden
+SAMPLE_COLS = [("Ms_emu_g", "Ms, emu/g", 1), ("Mr_emu_g", "Mr, emu/g", 1), ("Hc_kOe", "Hc, kOe", 2), ("Mr_Ms", "Mr/Ms", 2),
+               ("Ha_kOe", "Ha, kOe", 1), ("K_erg_cm3", "K, 10⁶ erg/cm³", 2), ("K_erg_g", "K, 10⁶ erg/g", 2),
+               ("Tc_K", "Tc, K", 0), ("a_A", "a, Å", 3), ("c_A", "c, Å", 3), ("Crystallite_Size_nm", "D, nm", 0),
+               ("Particle_Size_nm", "Particle, nm", 0), ("Calcination_Temperature_C", "Calc., °C", 0),
+               ("Sintering_Temperature_C", "Sint., °C", 0), ("Measurement_Temperature_K", "T meas., K", 0)]
+SORT_KEYS = ["Ms_emu_g", "Hc_kOe", "Mr_emu_g", "Mr_Ms", "Ha_kOe", "K_erg_cm3", "Year", "Calcination_Temperature_C",
+             "Sintering_Temperature_C"]
+
+
+def cell(r, c, nd):
+    v = r[c]
+    if c in ("K_erg_cm3", "K_erg_g"):
+        return num(v / 1e6, nd)
+    if c == "Measurement_Temperature_K":
+        return txt(v, "—")
+    return num(v, nd)
+
+
+def article_card(g):
+    """One article: source, synthesis procedure and a table with every sample of the selection."""
+    r0 = g.iloc[0]
+    cols = [(c, h, nd) for c, h, nd in SAMPLE_COLS if g[c].replace("", np.nan).notna().any()]
+    head = "<th>Formula</th>" + "".join(f"<th>{h}</th>" for _, h, _ in cols) + "<th>Phase</th>"
+    rows = []
+    for _, r in g.iterrows():
+        ph = txt(r.Phase_Purity, "—") + (f": {txt(r.Secondary_Phases)}" if txt(r.Secondary_Phases) else "")
+        cls = "" if r.Phase_Purity in ("", "single phase") else " class='imp'"
+        rows.append(f"<tr><td class='fm'>{fmt_formula(r.Formula)}</td>"
+                    + "".join(f"<td>{cell(r, c, nd)}</td>" for c, _, nd in cols) + f"<td{cls}>{ph}</td></tr>")
+    meta = " · ".join(dict.fromkeys(x for x in (txt(r0.Synthesis_Method), txt(r0.Sample_Form),
+                                                 txt(r0.Ms_Determination_Method)) if x))
+    procs = [txt(p) for p in dict.fromkeys(g.Synthesis_Procedure) if txt(p)]
+    proc = "".join(f"<p>{p}</p>" for p in procs)
+    proc = f"<details><summary>Synthesis procedure</summary>{proc}</details>" if proc else ""
+    return f"""<div class="art"><div class="h"><span>{html.escape(str(r0.Journal))}, {int(r0.Year)}</span>
+<a href="https://doi.org/{r0.DOI}" target="_blank">{r0.DOI} ↗</a><span class="n">{len(g)} samples · {meta}</span></div>
+{proc}<div class="tw"><table>{head and "<tr>" + head + "</tr>"}{"".join(rows)}</table></div></div>"""
 
 
 def record_cards(hit):
-    """Card grid like in RuCytoToxDB: one card per record, paged; optionally grouped by article."""
-    s0, s1, s2 = st.columns([1.2, 2, 1])
-    grouped = s0.toggle("Group by article", key=f"grp_{len(hit)}")
-    key = s1.selectbox("Sort articles by" if grouped else "Sort cards by",
-                       ["Ms_emu_g", "Mr_emu_g", "Hc_kOe", "Mr_Ms", "Year", "Annealing_Temperature_C"], key=f"sort_{len(hit)}")
+    """One card per article with a table of its samples, articles ranked by their best value of the key."""
+    s1, s2 = st.columns([3, 1])
+    key = s1.selectbox("Sort articles by", SORT_KEYS, key=f"sort_{len(hit)}")
     desc = s2.radio("Order", ["↓", "↑"], horizontal=True, key=f"ord_{len(hit)}") == "↓"
-    if not grouped:
-        hit = hit.sort_values(key, ascending=not desc, na_position="last")
-        per = 24
-        pages = max(1, -(-len(hit) // per))
-        pg = st.number_input(f"Page (of {pages})", 1, pages, 1, key=f"pg_{len(hit)}") if pages > 1 else 1
-        st.markdown('<div class="cards">' + "".join(card(r) for _, r in hit.iloc[(pg - 1) * per:pg * per].iterrows())
-                    + "</div>", unsafe_allow_html=True)
-        return
-    # articles ranked by their best value of the key; cards inside follow the dopant amount (the series order)
     best = hit.groupby("DOI")[key].max() if desc else hit.groupby("DOI")[key].min()
     dois = best.sort_values(ascending=not desc, na_position="last").index.tolist()
-    per = 6
+    per = 8
     pages = max(1, -(-len(dois) // per))
     pg = st.number_input(f"Page (of {pages}, {per} articles each)", 1, pages, 1, key=f"gpg_{len(hit)}") if pages > 1 else 1
-    out = []
-    for doi in dois[(pg - 1) * per:pg * per]:
-        g = hit[hit.DOI == doi].sort_values(["Dopant_Amount", "Annealing_Temperature_C", "Record_ID"], na_position="first")
-        r0 = g.iloc[0]
-        inner = "".join(card(r, source=False) for _, r in g.iterrows())
-        out.append(f"""<div class="art"><div class="h"><span>{html.escape(str(r0.Journal))}, {int(r0.Year)}</span>
-<a href="https://doi.org/{doi}" target="_blank">{doi} ↗</a><span class="n">{len(g)} records</span></div>
-<div class="cards">{inner}</div></div>""")
-    st.markdown("".join(out), unsafe_allow_html=True)
+    # inside an article the rows follow the series: dopant amount, then heat treatment
+    st.markdown("".join(article_card(hit[hit.DOI == doi].sort_values(
+        ["Dopant_Amount", "Calcination_Temperature_C", "Sintering_Temperature_C", "Record_ID"], na_position="first"))
+        for doi in dois[(pg - 1) * per:pg * per]), unsafe_allow_html=True)
 
 
 def show_hits(df, els, alone=False):
@@ -264,10 +301,11 @@ def show_hits(df, els, alone=False):
                                     Formulas=("Formula", lambda x: ", ".join(dict.fromkeys(x))))
             .reset_index().sort_values(["Year", "DOI"]))
     arts["Link"] = "https://doi.org/" + arts.DOI
-    show_distributions(df, hit, label)
-    t0, t1, t2 = st.tabs(["Cards", "Articles", "Records"])
+    t0, td, t1, t2 = st.tabs(["Articles", "Distributions", "Article list", "Records"])
     with t0:
         record_cards(hit)
+    with td:
+        show_distributions(df, hit, label)
     t1.dataframe(arts, hide_index=True, use_container_width=True,
                  column_config={"Link": st.column_config.LinkColumn("Link", display_text="open ↗"),
                                 "Year": st.column_config.NumberColumn(format="%d")})
@@ -277,8 +315,10 @@ def show_hits(df, els, alone=False):
                        f"hexamagdb_{'_'.join(els)}.csv", "text/csv")
 
 
-RECORD_COLS = ["Record_ID", "Formula", "Dopant", "Substitution", "Synthesis_Method", "Annealing_Temperature_C", "a_A", "c_A",
-               "Crystallite_Size_nm", "Phase_Purity", "Sample_Form", "Ms_emu_g", "Mr_emu_g", "Hc_kOe", "Mr_Ms", "Tc_K", "DOI", "Year"]
+RECORD_COLS = ["Record_ID", "Formula", "Dopant", "Substitution", "Synthesis_Method", "Calcination_Temperature_C",
+               "Sintering_Temperature_C", "a_A", "c_A", "Crystallite_Size_nm", "Particle_Size_nm", "Phase_Purity", "Sample_Form",
+               "Ms_emu_g", "Mr_emu_g", "Hc_kOe", "Mr_Ms", "Ha_kOe", "K_erg_cm3", "K_erg_g", "Tc_K", "Synthesis_Procedure",
+               "DOI", "Year"]
 
 d = load(DATA.stat().st_mtime)
 with st.sidebar:
@@ -314,11 +354,26 @@ if page.startswith("◈"):
     unit = st.radio("Count", ["records", "articles"], horizontal=True)
     ex = f[["Elements", "DOI"]].explode("Elements").dropna()
     counts = (ex.groupby("Elements").DOI.nunique() if unit == "articles" else ex.Elements.value_counts()).to_dict()
-    sel = st.query_params.get("el")
-    st.markdown(periodic_table(counts, unit=unit, selected=sel), unsafe_allow_html=True)
-    st.caption("Dark: no records. Hatched: host lattice (Ba, Sr, Fe, O). Colour runs blue → violet → red on a log scale. Click an element to list its articles and records.")
+    sel, with_ = st.query_params.get("el"), st.query_params.get("with")
+    partners = None
     if sel in counts:
-        show_hits(f, [sel])
+        p = pair_counts(f[f.N_dopants > 0], unit == "articles")
+        mine = p[p.A == sel]
+        partners = {b: int(k) for b, k in zip(mine.B, mine.n) if b != sel}
+        alone = int(mine[mine.B == sel].n.sum())
+    st.markdown(periodic_table(counts, unit=unit, selected=sel if partners is not None else None, partners=partners,
+                               pair=with_), unsafe_allow_html=True)
+    if partners is None:
+        st.caption("Dark: no records. Hatched: host lattice (Ba, Sr, Fe, O). Colour runs blue → violet → red on a log scale. "
+                   "Click an element to see its co-dopants and list its articles and records.")
+    else:
+        st.caption(f"{sel} (gold): alone in {alone} {unit}, co-doped with {len(partners)} elements. Bright cells give the "
+                   f"{unit} with {sel} and that element, in triple co-doping every pair counts. Click a partner for the pair, "
+                   f"a dimmed element to select it instead, {sel} itself to clear.")
+        if with_ in partners:
+            show_hits(f, sorted({sel, with_}, key=lambda e: PT[e][0]))
+        else:
+            show_hits(f, [sel])
     present = [e for e in PT if e in counts]
     absent_tm = [e for e in ("Sc Ti V Cr Mn Co Ni Cu Zn Ga Y Zr Nb Mo Ru Rh Pd Ag Cd In Sn Sb Hf Ta W Re Ir Pt "
                              "La Ce Pr Nd Sm Eu Gd Tb Dy Ho Er Tm Yb Lu").split() if e not in counts]
@@ -385,9 +440,10 @@ elif page.startswith("⊞"):
 elif page.startswith("∿"):
     num = {"Ms, emu/g": "Ms_emu_g", "Hc, kOe": "Hc_kOe", "Mr, emu/g": "Mr_emu_g", "Mr/Ms": "Mr_Ms", "a, Å": "a_A",
            "c, Å": "c_A", "V, Å³": "V_A3", "Crystallite size, nm": "Crystallite_Size_nm", "Tc, K": "Tc_K",
-           "Annealing T, °C": "Annealing_Temperature_C", "Year": "Year"}
+           "Ha, kOe": "Ha_kOe", "K, erg/cm³": "K_erg_cm3", "K, erg/g": "K_erg_g", "Particle size, nm": "Particle_Size_nm",
+           "Calcination T, °C": "Calcination_Temperature_C", "Sintering T, °C": "Sintering_Temperature_C", "Year": "Year"}
     a, b, c = st.columns(3)
-    xs = a.selectbox("x", list(num), index=list(num).index("Annealing T, °C"))
+    xs = a.selectbox("x", list(num), index=list(num).index("Calcination T, °C"))
     ys = b.selectbox("y", list(num), index=0)
     el = c.selectbox("Highlight dopant", ["—"] + sorted(f.Elements.explode().dropna().unique(), key=lambda e: PT[e][0]))
     g = f.dropna(subset=[num[xs], num[ys]]).copy()

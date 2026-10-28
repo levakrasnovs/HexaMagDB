@@ -13,18 +13,18 @@
 
 | Path | Description |
 | --- | --- |
-| `data/hexamagdb.csv` | The dataset: 3,248 records from 502 publications |
+| `data/hexamagdb.csv` | The dataset: 4,158 records from 610 publications |
 | `streamlit_app.py` | Streamlit app to browse, filter, plot and download the data |
 
 Each record is one sample from one publication. Main fields:
 
 - **Composition:** `Formula`, `Dopant`, `Dopant_Amount`, `Substitution`
-- **Synthesis:** `Synthesis_Method`, `Annealing_Temperature_C`, `Annealing_Time_h`, `Heat_Treatment_Reported`
-- **Structure:** `a_A`, `c_A`, `V_A3`, `Crystallite_Size_nm`, `Phase_Purity`, `Secondary_Phases`
-- **Magnetism:** `Ms_emu_g`, `Mr_emu_g`, `Hc_kOe`, `Mr_Ms`, `Tc_K`, `Measurement_Temperature_K`, `Maximum_Field_kOe`
+- **Synthesis:** `Synthesis_Method`, `Synthesis_Procedure`, `Synthesis_Notes`, `Calcination_Temperature_C`, `Calcination_Time_h`, `Sintering_Temperature_C`, `Sintering_Time_h`
+- **Structure:** `a_A`, `c_A`, `V_A3`, `Crystallite_Size_nm`, `Particle_Size_nm`, `Particle_Size_Method`, `Phase_Purity`, `Secondary_Phases`, `Secondary_Phase_wt`
+- **Magnetism:** `Ms_emu_g`, `Mr_emu_g`, `Hc_kOe`, `Mr_Ms`, `Ha_kOe`, `K_erg_cm3`, `K_erg_g`, `Tc_K`, `Measurement_Temperature_K`, `Ms_Determination_Method`, `Maximum_Field_kOe`
 - **Provenance:** `DOI`, `Journal`, `Year`, `Comment`
 
-Values are converted to common units. The full multi-stage heat treatment as reported is kept in `Heat_Treatment_Reported`, the authors' method name in `Synthesis_Method_Reported`.
+Values are converted to common units. The synthesis as described by the authors is kept in `Synthesis_Procedure`.
 Only isotropic polycrystalline powders and ceramics are included.
 
 ## Run locally
