@@ -109,6 +109,8 @@ p, li {{ color:{MUTED}; }}
 .art th:first-child, .art td.fm {{ text-align:left; }}
 .art td.fm {{ font-family:'Space Grotesk',sans-serif; color:#eef1f8; }}
 .art td.imp {{ color:{NORTH}; }}
+.art tr.hl td {{ background:rgba(255,209,102,0.10); }}
+.art tr.hl td.fm {{ box-shadow:inset 2px 0 0 {GOLD}; }}
 .art .h .n {{ font-family:'JetBrains Mono',monospace; font-size:0.7rem; color:#5d6880; }}
 </style>""", unsafe_allow_html=True)
 
@@ -240,12 +242,13 @@ def txt(v, empty=""):
 
 
 # columns of the per-article sample table: (column, header, digits); a column empty for the whole article is hidden
-SAMPLE_COLS = [("Ms_emu_g", "Ms, emu/g", 1), ("Mr_emu_g", "Mr, emu/g", 1), ("Hc_kOe", "Hc, kOe", 2), ("Mr_Ms", "Mr/Ms", 2),
+SAMPLE_COLS = [("Measurement_Temperature_K", "T meas., K", 0), ("Ms_emu_g", "Ms, emu/g", 1), ("Mr_emu_g", "Mr, emu/g", 1), ("Hc_kOe", "Hc, kOe", 2), ("Mr_Ms", "Mr/Ms", 2),
                ("Ha_kOe", "Ha, kOe", 1), ("K_erg_cm3", "K, 10⁶ erg/cm³", 2), ("K_erg_g", "K, 10⁶ erg/g", 2),
                ("Tc_K", "Tc, K", 0), ("a_A", "a, Å", 3), ("c_A", "c, Å", 3), ("Crystallite_Size_nm", "D, nm", 0),
-               ("Particle_Size_nm", "Particle, nm", 0), ("Calcination_Temperature_C", "Calc., °C", 0),
-               ("Sintering_Temperature_C", "Sint., °C", 0), ("Measurement_Temperature_K", "T meas., K", 0)]
-SORT_KEYS = ["Ms_emu_g", "Hc_kOe", "Mr_emu_g", "Mr_Ms", "Ha_kOe", "K_erg_cm3", "Year", "Calcination_Temperature_C",
+               ("Particle_Size_nm", "Particle, nm", 0), ("Calcination_Temperature_C", "Calcination", 0),
+               ("Sintering_Temperature_C", "Sintering", 0)]
+ALWAYS_SHOWN = {"Calcination_Temperature_C", "Sintering_Temperature_C"}
+SORT_KEYS = ["Year", "Ms_emu_g", "Hc_kOe", "Mr_emu_g", "Mr_Ms", "Ha_kOe", "K_erg_cm3", "Calcination_Temperature_C",
              "Sintering_Temperature_C"]
 
 
@@ -255,19 +258,24 @@ def cell(r, c, nd):
         return num(v / 1e6, nd)
     if c == "Measurement_Temperature_K":
         return txt(v, "—")
+    if c in ALWAYS_SHOWN:
+        # temperature with the holding time, e.g. 1100 °C · 2 h
+        t = r[c.replace("Temperature_C", "Time_h")]
+        return "—" if pd.isna(v) else f"{num(v, 0)} °C" + (f" · {num(t, 1)} h" if pd.notna(t) else "")
     return num(v, nd)
 
 
-def article_card(g):
+def article_card(g, hl=None):
     """One article: source, synthesis procedure and a table with every sample of the selection."""
     r0 = g.iloc[0]
-    cols = [(c, h, nd) for c, h, nd in SAMPLE_COLS if g[c].replace("", np.nan).notna().any()]
+    cols = [(c, h, nd) for c, h, nd in SAMPLE_COLS if c in ALWAYS_SHOWN or g[c].replace("", np.nan).notna().any()]
     head = "<th>Formula</th>" + "".join(f"<th>{h}</th>" for _, h, _ in cols) + "<th>Phase</th>"
     rows = []
     for _, r in g.iterrows():
         ph = txt(r.Phase_Purity, "—") + (f": {txt(r.Secondary_Phases)}" if txt(r.Secondary_Phases) else "")
         cls = "" if r.Phase_Purity in ("", "single phase") else " class='imp'"
-        rows.append(f"<tr><td class='fm'>{fmt_formula(r.Formula)}</td>"
+        mark = " class='hl'" if hl is not None and r.Record_ID in hl else ""
+        rows.append(f"<tr{mark}><td class='fm'>{fmt_formula(r.Formula)}</td>"
                     + "".join(f"<td>{cell(r, c, nd)}</td>" for c, _, nd in cols) + f"<td{cls}>{ph}</td></tr>")
     meta = " · ".join(dict.fromkeys(x for x in (txt(r0.Synthesis_Method), txt(r0.Sample_Form),
                                                  txt(r0.Ms_Determination_Method)) if x))
@@ -279,8 +287,9 @@ def article_card(g):
 {proc}<div class="tw"><table>{head and "<tr>" + head + "</tr>"}{"".join(rows)}</table></div></div>"""
 
 
-def record_cards(hit):
-    """One card per article with a table of its samples, articles ranked by their best value of the key."""
+def record_cards(hit, full=None):
+    """One card per article with a table of its samples, articles ranked by their best value of the key.
+    full: show every sample of the matched articles and highlight the matched ones."""
     s1, s2 = st.columns([3, 1])
     key = s1.selectbox("Sort articles by", SORT_KEYS, key=f"sort_{len(hit)}")
     desc = s2.radio("Order", ["↓", "↑"], horizontal=True, key=f"ord_{len(hit)}") == "↓"
@@ -290,8 +299,9 @@ def record_cards(hit):
     pages = max(1, -(-len(dois) // per))
     pg = st.number_input(f"Page (of {pages}, {per} articles each)", 1, pages, 1, key=f"gpg_{len(hit)}") if pages > 1 else 1
     # inside an article the rows follow the series: dopant amount, then heat treatment
-    st.markdown("".join(article_card(hit[hit.DOI == doi].sort_values(
-        ["Dopant_Amount", "Calcination_Temperature_C", "Sintering_Temperature_C", "Record_ID"], na_position="first"))
+    src, hl = (hit, None) if full is None else (full, set(hit.Record_ID))
+    st.markdown("".join(article_card(src[src.DOI == doi].sort_values(
+        ["Dopant_Amount", "Calcination_Temperature_C", "Sintering_Temperature_C", "Record_ID"], na_position="first"), hl)
         for doi in dois[(pg - 1) * per:pg * per]), unsafe_allow_html=True)
 
 
@@ -466,15 +476,20 @@ elif page.startswith("∿"):
     st.caption(f"{len(g)} records have both values.")
 
 else:
-    q = st.text_input("Search formula, DOI or dopant", placeholder="e.g. SrFe11.5Co0.5O19, Zr, 10.1016/j.jmmm")
+    q = st.text_input("Search formula, DOI or dopant", placeholder="e.g. SrFe11.5Co0.5O19, Zr or 10.1016/j.jmmm.2017.08.079")
     cols = RECORD_COLS
     g = f
     if q:
         s = q.strip()
         g = f[f.Formula.str.contains(s, case=False, regex=False) | f.DOI.str.contains(s, case=False, regex=False)
               | f.Elements.map(lambda els: s in els)]
-    st.caption(f"{len(g)} records")
-    st.dataframe(g[cols], use_container_width=True, hide_index=True, height=620,
+    st.caption(f"{len(g)} records, {g.DOI.nunique()} articles" + (", matched samples highlighted" if q else ""))
+    ta, tr = st.tabs(["Articles", "Records"])
+    with ta:
+        if len(g):
+            # whole articles stay in the cards, so a matched sample is seen next to the rest of its series
+            record_cards(g, full=f if q else None)
+    tr.dataframe(g[cols], use_container_width=True, hide_index=True, height=620,
                  column_config={"DOI": st.column_config.TextColumn("DOI"), "Year": st.column_config.NumberColumn(format="%d")})
-    st.download_button("Download selection (CSV)", g.drop(columns=["Elements", "N_dopants"]).to_csv(index=False),
+    tr.download_button("Download selection (CSV)", g.drop(columns=["Elements", "N_dopants"]).to_csv(index=False),
                        "hexamagdb_selection.csv", "text/csv")
