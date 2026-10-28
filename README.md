@@ -13,7 +13,7 @@
 
 | Path | Description |
 | --- | --- |
-| `data/hexamagdb.csv` | The dataset: 4,158 records from 610 publications |
+| `data/hexamagdb.csv` | The dataset: 4,402 records from 664 publications |
 | `streamlit_app.py` | Streamlit app to browse, filter, plot and download the data |
 
 Each record is one sample from one publication. Main fields:
@@ -22,7 +22,7 @@ Each record is one sample from one publication. Main fields:
 - **Synthesis:** `Synthesis_Method`, `Synthesis_Procedure`, `Synthesis_Notes`, `Calcination_Temperature_C`, `Calcination_Time_h`, `Sintering_Temperature_C`, `Sintering_Time_h`
 - **Structure:** `a_A`, `c_A`, `V_A3`, `Crystallite_Size_nm`, `Particle_Size_nm`, `Particle_Size_Method`, `Phase_Purity`, `Secondary_Phases`, `Secondary_Phase_wt`
 - **Magnetism:** `Ms_emu_g`, `Mr_emu_g`, `Hc_kOe`, `Mr_Ms`, `Ha_kOe`, `K_erg_cm3`, `K_erg_g`, `Tc_K`, `Measurement_Temperature_K`, `Ms_Determination_Method`, `Maximum_Field_kOe`
-- **Provenance:** `DOI`, `Journal`, `Year`, `Comment`
+- **Provenance:** `DOI`, `Journal`, `Year`
 
 Values are converted to common units. The synthesis as described by the authors is kept in `Synthesis_Procedure`.
 Only isotropic polycrystalline powders and ceramics are included.
