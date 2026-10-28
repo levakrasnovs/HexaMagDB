@@ -10,6 +10,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+import streamlit.components.v1 as components
 
 
 DATA = Path(__file__).resolve().parent / "data" / "hexamagdb.csv"
@@ -40,6 +41,17 @@ Ho 67 9 14|Er 68 9 15|Tm 69 9 16|Yb 70 9 17|Lu 71 9 18|
 Ac 89 10 4|Th 90 10 5|Pa 91 10 6|U 92 10 7"""
 PT = {s: (int(z), int(r), int(c)) for s, z, r, c in (e.split() for e in _PT.replace("\n", "").split("|"))}
 
+PT_CSS = """.pt { display:grid; grid-template-columns:repeat(18, minmax(0,1fr)); gap:3px; max-width:980px; }
+.pt div, .pt a { text-decoration:none; }
+.pt a:hover { outline:2px solid #ffd166; transform:translateY(-1px); box-shadow:0 0 14px rgba(255,209,102,0.35); }
+.pt div, .pt a { aspect-ratio:1; border-radius:5px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+          font-family:'JetBrains Mono',monospace; line-height:1.05; }
+.pt .s { font-size:0.85rem; font-weight:500; }
+.pt .n { font-size:0.58rem; opacity:0.85; }
+""".replace("#ffd166", GOLD)
+# periodic table as a component: a click reruns the script instead of reloading the page
+ptable = components.declare_component("ptable", path=str(Path(__file__).resolve().parent / "components" / "ptable"))
+
 st.set_page_config(page_title="HexaMagDB", page_icon="🧲", layout="wide", initial_sidebar_state="expanded")
 st.markdown(f"""
 <style>
@@ -69,13 +81,6 @@ p, li {{ color:{MUTED}; }}
 .kpi:before {{ content:''; position:absolute; left:0; right:0; top:0; height:3px; background:linear-gradient(90deg,{SOUTH} 0 50%,{NORTH} 50% 100%); }}
 .kpi .v {{ font-family:'Space Grotesk',sans-serif; font-size:1.7rem; font-weight:700; color:#eef1f8; }}
 .kpi .l {{ font-family:'JetBrains Mono',monospace; font-size:0.65rem; letter-spacing:0.1em; text-transform:uppercase; color:#4a5568; }}
-.pt {{ display:grid; grid-template-columns:repeat(18, minmax(0,1fr)); gap:3px; max-width:980px; }}
-.pt div, .pt a {{ text-decoration:none; }}
-.pt a:hover {{ outline:2px solid {GOLD}; transform:translateY(-1px); box-shadow:0 0 14px rgba(255,209,102,0.35); }}
-.pt div, .pt a {{ aspect-ratio:1; border-radius:5px; display:flex; flex-direction:column; align-items:center; justify-content:center;
-          font-family:'JetBrains Mono',monospace; line-height:1.05; }}
-.pt .s {{ font-size:0.85rem; font-weight:500; }}
-.pt .n {{ font-size:0.58rem; opacity:0.85; }}
 .cards {{ display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:12px; margin:6px 0 10px; }}
 .card {{ position:relative; background:{PANEL}; border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:14px 14px 12px; overflow:hidden; }}
 .card:before {{ content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:linear-gradient(180deg,{SOUTH},{NORTH}); }}
@@ -150,7 +155,7 @@ def periodic_table(counts, hosts=("Ba", "Sr"), unit="records", selected=None, pa
         style = f"grid-row:{r};grid-column:{c};"
         n = counts.get(sym, 0)
         if partners is not None and sym in others and sym in orig_counts and sym not in hosts:
-            cells.append(f"<a href='?el={sym}' target='_self' style='{style}background:#141a2c;color:#5d6880;opacity:0.35;' "
+            cells.append(f"<a data-q='el={sym}' style='{style}background:#141a2c;color:#5d6880;opacity:0.35;' "
                          f"title='{sym}: never with {selected}, click to select'><span class='s'>{sym}</span></a>")
         elif sym in hosts or sym in ("Fe", "O"):
             cells.append(f"<div style='{style}background:repeating-linear-gradient(135deg,#1c2338 0 4px,#232c46 4px 8px);color:#9fb3d9;' title='{sym}: host lattice'>"
@@ -165,7 +170,7 @@ def periodic_table(counts, hosts=("Ba", "Sr"), unit="records", selected=None, pa
                 bg, fg = GOLD, "#1a1405"
             else:
                 href, tip = f"?el={selected}&with={sym}", f"{selected} + {sym}: {n} {unit}"
-            cells.append(f"<a href='{href}' target='_self' style='{style}{ring}background:{bg};color:{fg};' title='{tip}'>"
+            cells.append(f"<a data-q='{href.lstrip('?')}' style='{style}{ring}background:{bg};color:{fg};' title='{tip}'>"
                          f"<span class='s'>{sym}</span><span class='n'>{n}</span></a>")
         else:
             cells.append(f"<div style='{style}background:#0b0f1a;color:#323a52;border:1px solid rgba(255,255,255,0.04);' "
@@ -361,8 +366,13 @@ if page.startswith("◈"):
         mine = p[p.A == sel]
         partners = {b: int(k) for b, k in zip(mine.B, mine.n) if b != sel}
         alone = int(mine[mine.B == sel].n.sum())
-    st.markdown(periodic_table(counts, unit=unit, selected=sel if partners is not None else None, partners=partners,
-                               pair=with_), unsafe_allow_html=True)
+    click = ptable(html=periodic_table(counts, unit=unit, selected=sel if partners is not None else None,
+                                       partners=partners, pair=with_), css=PT_CSS, key="ptable", default=None)
+    if click and click["n"] != st.session_state.get("pt_click"):
+        st.session_state.pt_click = click["n"]
+        st.query_params.clear()
+        st.query_params.update(dict(kv.split("=") for kv in click["q"].split("&") if kv))
+        st.rerun()
     if partners is None:
         st.caption("Dark: no records. Hatched: host lattice (Ba, Sr, Fe, O). Colour runs blue → violet → red on a log scale. "
                    "Click an element to see its co-dopants and list its articles and records.")
