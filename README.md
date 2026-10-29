@@ -7,6 +7,10 @@
   with composition, synthesis, lattice parameters and magnetic properties extracted from the literature.
 </p>
 
+Visit our demo <https://hexamagdb.streamlit.app/>.
+
+Download HexaMagDB: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23759532.svg)](https://doi.org/10.5281/zenodo.23759532)
+
 ---
 
 ## Contents
@@ -14,6 +18,7 @@
 | Path | Description |
 | --- | --- |
 | `data/hexamagdb.csv` | The dataset: 4,402 records from 664 publications |
+| `Code_for_paper.ipynb` | Checks used for the technical validation of the dataset |
 | `streamlit_app.py` | Streamlit app to browse, filter, plot and download the data |
 
 Each record is one sample from one publication. Main fields:
@@ -36,4 +41,6 @@ streamlit run streamlit_app.py
 
 ## Status
 
-Preliminary version. The data descriptor is in preparation. Please contact the authors before reusing the data.
+The data descriptor is in preparation. Please cite the dataset as:
+
+Khvashchevskaya, Y., Krasnov, L. & Popkov, V. **HexaMagDB: a dataset of magnetic properties, structure and synthesis of doped barium and strontium M-type hexaferrites.** Zenodo (2026). https://doi.org/10.5281/zenodo.23759532
