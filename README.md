@@ -21,16 +21,7 @@ Download HexaMagDB: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23759532
 | `Code_for_paper.ipynb` | Checks used for the technical validation of the dataset |
 | `streamlit_app.py` | Streamlit app to browse, filter, plot and download the data |
 
-Each record is one sample from one publication. Main fields:
-
-- **Composition:** `Formula`, `Dopant`, `Dopant_Amount`, `Substitution`
-- **Synthesis:** `Synthesis_Method`, `Synthesis_Procedure`, `Synthesis_Notes`, `Calcination_Temperature_C`, `Calcination_Time_h`, `Sintering_Temperature_C`, `Sintering_Time_h`
-- **Structure:** `a_A`, `c_A`, `V_A3`, `Crystallite_Size_nm`, `Particle_Size_nm`, `Particle_Size_Method`, `Phase_Purity`, `Secondary_Phases`, `Secondary_Phase_wt`
-- **Magnetism:** `Ms_emu_g`, `Mr_emu_g`, `Hc_kOe`, `Mr_Ms`, `Ha_kOe`, `K_erg_cm3`, `K_erg_g`, `Tc_K`, `Measurement_Temperature_K`, `Ms_Determination_Method`, `Maximum_Field_kOe`
-- **Provenance:** `DOI`, `Journal`, `Year`
-
-Values are converted to common units. The synthesis as described by the authors is kept in `Synthesis_Procedure`.
-Only isotropic polycrystalline powders and ceramics are included.
+HexaMagDB contains 4402 records of magnetic properties, structure and synthesis of polycrystalline Ba, Sr and mixed Ba–Sr M-type hexaferrites (AFe<sub>12</sub>O<sub>19</sub>), undoped and doped with 48 elements (Al, Bi, Ca, Cd, Ce, Co, Cr, Cu, Dy, Er, Eu, Ga, Gd, Hf, Ho, In, Ir, K, La, Li, Lu, Mg, Mn, Mo, Na, Nb, Nd, Ni, Pb, Pr, Re, Ru, Sb, Sc, Si, Sm, Sn, Ta, Tb, Ti, Tl, Tm, V, W, Y, Yb, Zn and Zr), covering 2095 unique compositions reported in 664 literature papers from 1986 to 2026. Single crystals, films and field-oriented or textured samples are not included. Every record contains at least one magnetic value.
 
 ## Run locally
 
@@ -39,8 +30,8 @@ pip install -r requirements.txt
 streamlit run streamlit_app.py
 ```
 
-## Status
+## Citation
 
-The data descriptor is in preparation. Please cite the dataset as:
+Please cite the dataset as:
 
 Khvashchevskaya, Y., Krasnov, L. & Popkov, V. **HexaMagDB: a dataset of magnetic properties, structure and synthesis of doped barium and strontium M-type hexaferrites.** Zenodo (2026). https://doi.org/10.5281/zenodo.23759532
