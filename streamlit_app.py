@@ -346,7 +346,7 @@ with st.sidebar:
     host = st.multiselect("Host", ["Ba", "Sr", "Ba–Sr"], default=["Ba", "Sr", "Ba–Sr"])
     methods = st.multiselect("Synthesis", sorted(m for m in d.Synthesis_Method.unique() if m), placeholder="all methods")
     yr = st.slider("Year", int(d.Year.min()), int(d.Year.max()), (int(d.Year.min()), int(d.Year.max())))
-    st.caption("Data: Khvashchevskaya, Y., Krasnov, L. & Popkov, V. HexaMagDB: a dataset of magnetic properties, structure and synthesis of doped barium and strontium M-type hexaferrites. Zenodo, [doi.org/10.5281/zenodo.23759532](https://doi.org/10.5281/zenodo.23759532)")
+    st.caption("Data: Khvashchevskaya, Y., Krasnov, L. & Popkov, V. HexaMagDB: a dataset of magnetic properties, structure and synthesis of doped barium and strontium M-type hexaferrites. Zenodo, [doi.org/10.5281/zenodo.23807416](https://doi.org/10.5281/zenodo.23807416)")
 
 f = d[d.Host.isin(host) & d.Year.between(*yr)]
 if methods:

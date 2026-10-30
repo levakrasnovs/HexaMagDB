@@ -9,7 +9,7 @@
 
 Visit our demo <https://hexamagdb.streamlit.app/>.
 
-Download HexaMagDB: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23759532.svg)](https://doi.org/10.5281/zenodo.23759532)
+Download HexaMagDB: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23807416.svg)](https://doi.org/10.5281/zenodo.23807416)
 
 ---
 
@@ -34,4 +34,4 @@ streamlit run streamlit_app.py
 
 Please cite the dataset as:
 
-Khvashchevskaya, Y., Krasnov, L. & Popkov, V. **HexaMagDB: a dataset of magnetic properties, structure and synthesis of doped barium and strontium M-type hexaferrites.** Zenodo (2026). https://doi.org/10.5281/zenodo.23759532
+Khvashchevskaya, Y., Krasnov, L. & Popkov, V. **HexaMagDB: a dataset of magnetic properties, structure and synthesis of doped barium and strontium M-type hexaferrites.** Zenodo (2026). https://doi.org/10.5281/zenodo.23807416
